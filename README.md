@@ -40,16 +40,9 @@ Access is controlled by a `level` middleware (`CekLevel`), so a cashier who open
 
 Core tables: `users`, `kategori`, `produk`, `member`, `penjualan`, `penjualan_detail`, `coa` and `setting`.
 
-```mermaid
-erDiagram
-    KATEGORI ||--o{ PRODUK : "has"
-    MEMBER ||--o{ PENJUALAN : "buys (optional)"
-    USERS ||--o{ PENJUALAN : "processes"
-    PENJUALAN ||--|{ PENJUALAN_DETAIL : "contains"
-    PRODUK ||--o{ PENJUALAN_DETAIL : "sold in"
-```
+![Entity Relationship Diagram](docs/screenshots/erd.png)
 
-`coa` (chart of accounts) and `setting` (store configuration) are standalone tables.
+`coa` (chart of accounts) and `setting` (store configuration) are standalone tables. Only `produk.id_kategori` is enforced as a database foreign key; the other relations are handled in application code.
 
 ## Accounting Logic
 
