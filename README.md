@@ -1,66 +1,137 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# TUB POS: Point of Sale & Accounting Reporting System
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A web-based Point of Sale (POS) and accounting reporting application for **Toko Usaha Baru**, a retail store in Mojokerto, East Java. It replaces manual weekly sales recording with a transaction system that automatically produces receipts, a general journal, a general ledger and monthly sales reports.
 
-## About Laravel
+Built as my Diploma (D3) thesis project in Accounting Information Systems, Telkom University (2024).
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+> **Status:** academic project, tested locally. It has not been deployed or used in production by the store.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Features
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+**Administrator (level 1)**
 
-## Learning Laravel
+- Dashboard with entity counts and a daily revenue chart for the current month
+- CRUD for chart of accounts (COA), product categories, products, members and users
+- Product barcode printing (Code 39, PDF)
+- Sales history with detail view, delete and automatic stock restore
+- Monthly reports exported to PDF: sales report, general journal and general ledger
+- Store settings: company info, receipt type (small/large) and default member discount
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+**Cashier (level 2)**
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+- Sales transaction screen: add products, pick an optional member, apply discount, enter the amount received and see the change
+- Stock is reduced automatically when a sale is saved
+- Print small or large sales receipts
+- Profile page
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains over 2000 video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Access is controlled by a `level` middleware (`CekLevel`), so a cashier who opens an admin URL is redirected to the dashboard.
 
-## Laravel Sponsors
+## Tech Stack
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the Laravel [Patreon page](https://patreon.com/taylorotwell).
+| Area     | Tools                                                          |
+| -------- | -------------------------------------------------------------- |
+| Backend  | PHP 8.1+, Laravel 10 (MVC), Eloquent ORM                       |
+| Auth     | Laravel Jetstream / Fortify, role levels via custom middleware |
+| Database | MySQL                                                          |
+| Frontend | Blade, AdminLTE 2 (Bootstrap), jQuery, Yajra DataTables, Vite  |
+| Reports  | barryvdh/laravel-dompdf (PDF), milon/barcode (Code 39)         |
 
-### Premium Partners
+## Database Design
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Cubet Techno Labs](https://cubettech.com)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[Many](https://www.many.co.uk)**
-- **[Webdock, Fast VPS Hosting](https://www.webdock.io/en)**
-- **[DevSquad](https://devsquad.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[OP.GG](https://op.gg)**
-- **[WebReinvent](https://webreinvent.com/?utm_source=laravel&utm_medium=github&utm_campaign=patreon-sponsors)**
-- **[Lendio](https://lendio.com)**
+Core tables: `users`, `kategori`, `produk`, `member`, `penjualan`, `penjualan_detail`, `coa` and `setting`.
 
-## Contributing
+```mermaid
+erDiagram
+    KATEGORI ||--o{ PRODUK : "has"
+    MEMBER ||--o{ PENJUALAN : "buys (optional)"
+    USERS ||--o{ PENJUALAN : "processes"
+    PENJUALAN ||--|{ PENJUALAN_DETAIL : "contains"
+    PRODUK ||--o{ PENJUALAN_DETAIL : "sold in"
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+`coa` (chart of accounts) and `setting` (store configuration) are standalone tables.
 
-## Code of Conduct
+## Accounting Logic
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Each saved sale creates a double-entry record in the general journal:
 
-## Security Vulnerabilities
+| Account           | Debit       | Credit      |
+| ----------------- | ----------- | ----------- |
+| Kas (cash)        | amount paid |             |
+| Penjualan (sales) |             | amount paid |
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+The report total shows equal debit and credit. During development I checked the journal, ledger and sales report totals against manual double-entry calculations, and they matched.
 
-## License
+## Testing
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+The five core modules (chart of accounts, category, product, member and sales transaction) were tested manually with black-box test cases, including invalid inputs such as empty required fields. All cases passed. The full test documentation is in the thesis book.
+
+## Screenshots
+
+| Login                                | Product                                  |
+| ------------------------------------ | ---------------------------------------- |
+| ![Login](docs/screenshots/login.png) | ![Product](docs/screenshots/product.png) |
+
+| Sales transaction                                | Sales Report                           |
+| ------------------------------------------------ | -------------------------------------- |
+| ![Transaction](docs/screenshots/transaction.png) | ![Report](docs/screenshots/report.png) |
+
+| General journal                          | Ledger                                 |
+| ---------------------------------------- | -------------------------------------- |
+| ![Journal](docs/screenshots/journal.png) | ![Ledger](docs/screenshots/ledger.png) |
+
+## Getting Started
+
+Requirements: PHP 8.1+, Composer, Node.js, MySQL.
+
+```bash
+git clone https://github.com/rukhulkirom/tub-pos.git
+cd tub-pos
+
+composer install
+npm install
+
+cp .env.example .env
+php artisan key:generate
+```
+
+Create an empty MySQL database, then set `DB_DATABASE`, `DB_USERNAME` and `DB_PASSWORD` in `.env`.
+
+```bash
+php artisan migrate --seed   # creates tables and the default store setting
+npm run build
+```
+
+Create the first administrator account (the seeder does not create users):
+
+```bash
+php artisan tinker
+>>> \App\Models\User::forceCreate(['name' => 'Admin', 'email' => 'admin@example.com', 'password' => bcrypt('change-me'), 'level' => 1]);
+```
+
+Cashier accounts use `level` = 2 and can be added from the **User** menu once you are logged in as administrator.
+
+Before recording sales, add the two accounts the journal relies on in the **COA** menu. They must be the first two rows, in this order:
+
+1. `111` Kas
+2. `411` Penjualan
+
+Start the app:
+
+```bash
+php artisan serve
+```
+
+Open http://127.0.0.1:8000 and log in.
+
+## Known Limitations
+
+- The journal reads the first two COA rows as cash and sales accounts, so the account order matters (see above). A more robust design would mark these accounts explicitly.
+- Only one foreign key is enforced at the database level (`produk.id_kategori`); other relations are handled in application code.
+- Automated tests are limited to the default Jetstream test suite. Application-specific testing was done manually (black-box).
+- Single-store scope with one revenue account; no purchasing, expenses or tax handling.
+
+## Author
+
+**Muhamad Rukhul Kirom**, Accounting Information Systems (D3), Telkom University
+[GitHub](https://github.com/rukhulkirom) · muhamadrukhulkirom@gmail.com
